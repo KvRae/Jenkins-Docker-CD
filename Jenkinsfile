@@ -1,26 +1,19 @@
 pipeline {
-    environment {
-        registry = "kvrae/dockerPipe"
-        registryCredential = ''
-        dockerImage = ''
-    }
     agent any
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('docker')
+        IMAGE_NAME = "kvrae/alpine:2.0.0"
+        DOCKERFILE_PATH = "Dockerfile"
+    }
     stages {
-        stage('Cloning git Repo') {
-            steps {
-                git 'https://github.com/KvRae/Jenkins-Docker-CD.git'
-            }
-        }
-        stage('Builing our image') {
+        stage('Build and Push Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build registry + "$BUILD_NUMBER"
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker') {
+                        def customImage = docker.build("${env.IMAGE_NAME}", "--file=${env.DOCKERFILE_PATH} .")
+                        customImage.push()
+                    }
                 }
-            }
-        }
-        stage('Cleaning up') {
-            steps {
-                sh "docker rmi $registry:$BUILD_NUMBER"
             }
         }
     }
