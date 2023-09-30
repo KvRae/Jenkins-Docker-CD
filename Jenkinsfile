@@ -1,25 +1,35 @@
 pipeline {
-    agent any
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('Docker')
-        IMAGE_NAME = "kvrae/alpine_pip:1.0.0"
-        GITHUB_REPO_URL = "https://github.com/KvRae/Jenkins-Docker-CD.git"
+        registry = "kvrae/alpine_pipe"
+        registryCredential = 'Docker'
+        dockerImage = ''
     }
-    }
+    agent any
     stages {
-        stage('Checkout') {
+        stage('Cloning our Git') {
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: env.GITHUB_REPO_URL]]])
+                git 'https://github.com/KvRae/Jenkins-Docker-CD.git'
             }
         }
-        stage('Build and Push Docker Image') {
+        stage('Building our image') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials-id') {
-                        def customImage = docker.build("${env.IMAGE_NAME}", "--file=Dockerfile .")
-                        customImage.push()
+                    dockerImage = docker.build registry + ":$BUILD_NUMBER"
+                }
+            }
+        }
+        stage('Deploy our image') {
+            steps {
+                script {
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push()
                     }
                 }
+            }
+        }
+        stage('Cleaning up') {
+            steps {
+                sh "docker rmi $registry:$BUILD_NUMBER"
             }
         }
     }
